@@ -14,6 +14,7 @@ namespace SlowMotion
         private readonly BoolReactiveProperty _isTimeSlowed = new BoolReactiveProperty(false);
         private readonly ReactiveProperty<float> _slowMotionPoints = new ReactiveProperty<float>(100f);
         private float _timeSinceLastActivation;
+        private float _defaultFixedDeltaTime;
     
         public SlowMotionController(float percentage, float recoveryTime, SlowMotionView slowMotionView)
         {
@@ -21,6 +22,7 @@ namespace SlowMotion
             _recoveryTime = recoveryTime;
             _slowMotionView = slowMotionView;
             _timeSinceLastActivation = 0f;
+            _defaultFixedDeltaTime = Time.fixedDeltaTime;
         }
 
         public void InitSlowMotion()
@@ -31,8 +33,11 @@ namespace SlowMotion
                 Subscribe(_ => DeactivateSlowMotion());
 
             // updating UI
-            Observable.EveryUpdate().
-                Subscribe(_ => _slowMotionView.UpdateBar(_slowMotionPoints.Value));
+            if(_slowMotionView != null)
+            {
+                Observable.EveryUpdate().
+                    Subscribe(_ => _slowMotionView.UpdateBar(_slowMotionPoints.Value));
+            }
         
             // Decrease slowMotionPoints each frame
             Observable.EveryUpdate()
@@ -72,9 +77,17 @@ namespace SlowMotion
             if (!_isTimeSlowed.Value)
                 _timeSinceLastActivation = 0f;
         }
-    
-        private void ActivateSlowMotion() => Time.timeScale = Mathf.Lerp(1f, _percentage, 0.85f);
 
-        private void DeactivateSlowMotion() => Time.timeScale = Mathf.Lerp(_percentage, 1f, 0.85f);
+        private void ActivateSlowMotion()
+        {
+            Time.timeScale = Mathf.Lerp(1f, _percentage, 0.85f);
+            Time.fixedDeltaTime = Mathf.Lerp(_defaultFixedDeltaTime, _defaultFixedDeltaTime * _percentage, 0.5f);
+        }
+
+        private void DeactivateSlowMotion()
+        {
+            Time.timeScale = Mathf.Lerp(_percentage, 1f, 0.85f);
+            Time.fixedDeltaTime =  Mathf.Lerp(Time.fixedDeltaTime, _defaultFixedDeltaTime, 0.5f);
+        }
     }
 }
